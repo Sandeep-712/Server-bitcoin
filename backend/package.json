@@ -19,5 +19,8 @@
     "express": "^4.19.2",
     "tiny-secp256k1": "^2.2.3",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }

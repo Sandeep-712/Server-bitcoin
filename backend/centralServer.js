@@ -13,8 +13,6 @@ const ECPair = ECPairFactory(tinysecp);
 
 app.use(cors({
     origin: 'http://localhost:3000',
-    methods: 'GET,POST',
-    credentials: true
 }));
 
 const blockchain = new Blockchain();
@@ -63,37 +61,10 @@ app.post('/signTransaction', (req, res) => {
     }
 });
 
-
 // Endpoint to get the current blockchain
 app.get('/blockchain', (req, res) => {
     res.json(blockchain.getBlockchain());
 });
-
-// const verifyTransactionSignature = (transaction, signature, publicKey) => {
-//     // Convert publicKey to Buffer
-//     const publicKeyBuffer = Buffer.from(publicKey, 'hex');
-    
-//     // Recreate the key pair from the public key
-//     const keyPair = ECPair.fromPublicKey(publicKeyBuffer);
-
-//     // Create a hash of the transaction
-//     const transactionString = JSON.stringify({
-//         from: transaction.from,
-//         to: transaction.to,
-//         amount: transaction.amount
-//     });
-//     const hash = bitcoin.crypto.sha256(Buffer.from(transactionString));
-
-//     // Convert signature from hex to Buffer
-//     const signatureBuffer = Buffer.from(signature, 'hex');
-
-//     console.log('Public Key (Buffer):', publicKeyBuffer);
-//     console.log('Signature (Buffer):', signatureBuffer);
-//     console.log('Hash:', hash);
-
-//     // Verify the signature
-//     return keyPair.verify(hash, signatureBuffer);
-// };
 
 app.post('/transaction', (req, res) => {
     const { from, to, amount, signature, publicKey } = req.body;
@@ -104,26 +75,21 @@ app.post('/transaction', (req, res) => {
         return res.status(400).json({ error: 'Invalid request data' });
     }
 
-    const transaction = { from, to, amount ,signature, publicKey };
+    const transaction = { from, to, amount, signature, publicKey };
 
     console.log('Transaction object:', transaction);
 
-    // const isValid = verifyTransactionSignature(transaction, signature, publicKey);
-
-    // console.log('Signature verification result:', isValid);
     const isValid = blockchain.isValidTransaction(transaction);
 
     console.log('Transaction validation result:', isValid);
 
     if (isValid) {
         blockchain.handleNewTransaction(transaction);
-        broadcast({ type: 'NEW_TRANSACTION', transaction });
         return res.status(200).send('Transaction added successfully');
     } else {
         return res.status(400).send('Invalid transaction');
     }
 });
-
 
 // Start the HTTP server
 app.listen(httpPort, () => {
@@ -155,7 +121,7 @@ wss.on('connection', (ws) => {
                 break;
             case 'NEW_TRANSACTION':
                 if (data.transaction) {
-                    const valid = blockchain.handleNewTransaction(data.transaction);
+                    const valid = blockchain.handleNewTransaction(data.transaction, ws);
                     if (valid) {
                         broadcast({ type: 'NEW_TRANSACTION', transaction: data.transaction });
                     }
@@ -177,9 +143,12 @@ wss.on('connection', (ws) => {
 
 // Function to broadcast messages to all connected miners
 function broadcast(message) {
+    console.log('Broadcasting message to', miners.length, 'clients');
     miners.forEach(miner => {
         if (miner.readyState === WebSocket.OPEN) {
             miner.send(JSON.stringify(message));
+        } else {
+            console.error('WebSocket is not open for miner:', miner);
         }
     });
 }

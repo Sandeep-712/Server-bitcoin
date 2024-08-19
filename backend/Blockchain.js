@@ -4,6 +4,7 @@ import * as bitcoin from 'bitcoinjs-lib';
 import { ECPairFactory } from 'ecpair';
 import * as tinysecp from 'tiny-secp256k1';
 
+const ECPair = ECPairFactory(tinysecp);
 
 // Define the Block class
 class Block {
@@ -16,9 +17,6 @@ class Block {
         this.nonce = nonce;
     }
 }
-
-const ECPair = ECPairFactory(tinysecp);
-
 
 // Define the Blockchain class
 class Blockchain {
@@ -120,7 +118,6 @@ class Blockchain {
             }
         }
 
-        console.error('New chain is not longer than the current chain, or it is identical.');
         return false;
     }
 
@@ -147,18 +144,12 @@ class Blockchain {
         }
     }
 
-
     // Validate the transaction
     isValidTransaction(transaction) {
         const { from, to, amount, signature, publicKey } = transaction;
 
-
-        // Debug logging
-        console.log('Validating transaction:', transaction);
-
-         // Check if all required fields are present
-         if (!from || !to || !amount || !signature || !publicKey) {
-            console.error('Transaction missing fields:', transaction);
+        // Check if all required fields are present
+        if (!from || !to || !amount || !signature || !publicKey) {
             return false;
         }
 
@@ -169,11 +160,6 @@ class Blockchain {
             const keyPair = ECPair.fromPublicKey(Buffer.from(publicKey, 'hex'));
             const isValid = keyPair.verify(hash, Buffer.from(signature, 'hex'));
 
-            console.log('Transaction hash:', hash.toString('hex'));
-            console.log('Public Key Buffer:', Buffer.from(publicKey, 'hex'));
-            console.log('Signature Buffer:', Buffer.from(signature, 'hex'));
-            console.log('Is Signature Valid:', isValid);
-
             return isValid;
         } catch (error) {
             console.error('Error in transaction validation:', error);
@@ -182,10 +168,17 @@ class Blockchain {
     }
 
     // Mine the pending transactions
-    minePendingTransactions(miningRewardAddress) {
-        const block = this.createBlock(this.pendingTransactions);
-        this.addBlock(block);
-        this.addTransaction({ from: 'network', to: miningRewardAddress, amount: 1 }); // Reward for mining
+    mineBlock() {
+        if (this.pendingTransactions.length === 0) {
+            console.error('No pending transactions');
+            return null;
+        }
+
+        const newBlock = this.createBlock(this.pendingTransactions);
+        this.addBlock(newBlock);
+        console.log('New block mined and added to the chain', newBlock);
+
+        return newBlock;
     }
 
     // Synchronize the chain with the central server
@@ -214,9 +207,18 @@ class Blockchain {
     }
 
     // Add new transaction to the pending transactions
-    handleNewTransaction(transaction) {
+    handleNewTransaction(transaction, wss) {
         if (this.isValidTransaction(transaction)) {
             this.addTransaction(transaction);
+
+            const newBlock = this.mineBlock();
+            if (newBlock) {
+                if (wss && wss.readyState === WebSocket.OPEN) {
+                    wss.send(JSON.stringify({ type: 'NEW_BLOCK', block: newBlock }));
+                } else {
+                    console.error('WebSocket is not open or undefined');
+                }
+            }
         } else {
             console.error('Invalid transaction received:', transaction);
         }
