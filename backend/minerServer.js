@@ -37,7 +37,6 @@ wss.on('message', (message) => {
     }
 });
 
-
 wss.on('error', (error) => {
     console.error('WebSocket error:', error);
 });
@@ -45,7 +44,53 @@ wss.on('error', (error) => {
 wss.on('close', () => {
     console.log('WebSocket connection closed');
     // Implement reconnection logic here if needed
+    setTimeout(() => {
+        wss = new WebSocket('ws://localhost:8080');
+        wss.on('open', () => {
+            console.log("Reconnected to central server");
+            wss.send(JSON.stringify({ type: 'SYNC_REQUEST' }));
+        });
+        wss.on('message', handleMessage);
+        wss.on('error', handleError);
+        wss.on('close', handleClose);
+    }, 5000); // Reconnect after 5 seconds
 });
+
+function handleMessage(message) {
+    try {
+        const data = JSON.parse(message);
+
+        switch (data.type) {
+            case 'SYNC_RESPONSE':
+                blockchain.handleSyncResponse(data.chain);
+                console.log('Blockchain synchronized');
+                isSynchronized = true;
+                startMining();
+                break;
+            case 'NEW_BLOCK':
+                blockchain.handleNewBlock(data.block, wss);
+                console.log('New block received and added');
+                break;
+            case 'NEW_TRANSACTION':
+                blockchain.handleNewTransaction(data.transaction);
+                console.log('New transaction received and added');
+                break;
+            default:
+                console.error('Unknown message type:', data.type);
+        }
+    } catch (error) {
+        console.error('Error parsing message:', error);
+    }
+}
+
+function handleError(error) {
+    console.error('WebSocket error:', error);
+}
+
+function handleClose() {
+    console.log('WebSocket connection closed');
+    // Implement reconnection logic here if needed
+}
 
 function startMining() {
     if (isSynchronized) {

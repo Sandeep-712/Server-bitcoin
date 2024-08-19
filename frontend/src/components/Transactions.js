@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
-import CryptoJS from 'crypto-js';
 import axios from 'axios';
 
-const signTransaction = (privateKey, transaction) => {
-    const transactionscript = JSON.stringify(transaction);
-    const hash = CryptoJS.SHA256(transactionscript).toString();
 
-    return CryptoJS.HmacSHA256(hash, privateKey).toString();
-}
 
 export default function Transactions() {
+
     const [privateKey, setPrivateKey] = useState('');
     const [publicKey, setPublicKey] = useState('');
     const [address, setAddress] = useState('');
@@ -18,7 +13,7 @@ export default function Transactions() {
 
     const handleGenerateWallet = async () => {
         try {
-            const response = await axios.get('http://localhost:8080/genWallet');
+            const response = await axios.get('http://localhost:8081/genWallet');
             const { privateKey, publicKey, address } = response.data;
             setPrivateKey(privateKey);
             setPublicKey(publicKey);
@@ -28,14 +23,25 @@ export default function Transactions() {
         }
     }
 
-    const handleSignTransaction = () => {
-        const signedTransaction = signTransaction(privateKey, transaction);
-        setSignTransactionHash(signedTransaction);
+    const handleSignTransaction = async () => {
+        try {
+            const response = await axios.post('http://localhost:8081/signTransaction', {
+                privateKey: privateKey,
+                transaction: {
+                    from: transaction.from,
+                    to: transaction.to,
+                    amount: transaction.amount
+                }
+            })
+            setSignTransactionHash(response.data.signature);
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     const handlesubmitTransaction = async () => {
         try {
-            const response = await axios.post('http://localhost:8080/transaction', {
+            const response = await axios.post('http://localhost:8081/transaction', {
                 from: transaction.from,
                 to: transaction.to,
                 amount: transaction.amount,
@@ -59,31 +65,34 @@ export default function Transactions() {
                     <p><strong>Address:</strong> {address}</p>
                 </div>
             )}
-            <input
-                type='text'
-                placeholder='from Address'
-                value={transaction.from}
-                onChange={(e) => setTransaction({ ...transaction, from: e.target.value })}
-            />
-            <input
-                type='text'
-                placeholder='to Address'
-                value={transaction.to}
-                onChange={(e) => setTransaction({ ...transaction, to: e.target.value })}
-            />
-            <input
-                type='number'
-                placeholder='amount'
-                value={transaction.amount}
-                onChange={(e) => setTransaction({ ...transaction, amount: e.target.value })}
-            />
-            <button onClick={handleSignTransaction}>Sign Transaction</button>
-            {signTransactionHash && (
-                <div>
-                    <p><strong>Signature:</strong> {signTransactionHash}</p>
-                    <button onClick={handlesubmitTransaction}>Submit Transaction</button>
-                </div>
-            )}
+            <div className='container'>
+                <input
+                    type='text'
+                    placeholder='from Address'
+                    value={transaction.from}
+                    onChange={(e) => setTransaction({ ...transaction, from: e.target.value })}
+                />
+                <input
+                    type='text'
+                    placeholder='to Address'
+                    value={transaction.to}
+                    onChange={(e) => setTransaction({ ...transaction, to: e.target.value })}
+                />
+                <input
+                    type='number'
+                    placeholder='amount'
+                    value={transaction.amount}
+                    onChange={(e) => setTransaction({ ...transaction, amount: e.target.value })}
+                />
+                <button onClick={handleSignTransaction}>Sign Transaction</button>
+                {signTransactionHash && (
+                    <div>
+                        <p><strong>Signature:</strong> {signTransactionHash}</p>
+                        <button onClick={handlesubmitTransaction}>Submit Transaction</button>
+                    </div>
+                )}
+            </div>
+
         </div>
     )
 };

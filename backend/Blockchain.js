@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import proofOfWork from './utils.js';
 import * as bitcoin from 'bitcoinjs-lib';
+import { ECPairFactory } from 'ecpair';
+import * as tinysecp from 'tiny-secp256k1';
 
 
 // Define the Block class
@@ -14,6 +16,9 @@ class Block {
         this.nonce = nonce;
     }
 }
+
+const ECPair = ECPairFactory(tinysecp);
+
 
 // Define the Blockchain class
 class Blockchain {
@@ -147,20 +152,40 @@ class Blockchain {
     isValidTransaction(transaction) {
         const { from, to, amount, signature, publicKey } = transaction;
 
-        const transactionString = JSON.stringify({ from, to, amount });
-        const verify = crypto.createVerify('SHA256');
-        verify.update(transactionString);
-        verify.end();
-        const isValid = verify.verify(publicKey, signature, 'base64');
 
-        return isValid;
+        // Debug logging
+        console.log('Validating transaction:', transaction);
+
+         // Check if all required fields are present
+         if (!from || !to || !amount || !signature || !publicKey) {
+            console.error('Transaction missing fields:', transaction);
+            return false;
+        }
+
+        try {
+            const transactionString = JSON.stringify({ from, to, amount });
+            const hash = bitcoin.crypto.sha256(Buffer.from(transactionString));
+
+            const keyPair = ECPair.fromPublicKey(Buffer.from(publicKey, 'hex'));
+            const isValid = keyPair.verify(hash, Buffer.from(signature, 'hex'));
+
+            console.log('Transaction hash:', hash.toString('hex'));
+            console.log('Public Key Buffer:', Buffer.from(publicKey, 'hex'));
+            console.log('Signature Buffer:', Buffer.from(signature, 'hex'));
+            console.log('Is Signature Valid:', isValid);
+
+            return isValid;
+        } catch (error) {
+            console.error('Error in transaction validation:', error);
+            return false;
+        }
     }
 
     // Mine the pending transactions
     minePendingTransactions(miningRewardAddress) {
         const block = this.createBlock(this.pendingTransactions);
         this.addBlock(block);
-        // this.addTransaction({ from: 'network', to: miningRewardAddress, amount: 1 }); // Reward for mining
+        this.addTransaction({ from: 'network', to: miningRewardAddress, amount: 1 }); // Reward for mining
     }
 
     // Synchronize the chain with the central server
