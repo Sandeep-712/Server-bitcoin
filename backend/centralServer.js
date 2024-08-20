@@ -66,6 +66,8 @@ app.get('/blockchain', (req, res) => {
     res.json(blockchain.getBlockchain());
 });
 
+
+
 app.post('/transaction', (req, res) => {
     const { from, to, amount, signature, publicKey } = req.body;
 
@@ -84,8 +86,18 @@ app.post('/transaction', (req, res) => {
     console.log('Transaction validation result:', isValid);
 
     if (isValid) {
-        blockchain.handleNewTransaction(transaction);
-        return res.status(200).send('Transaction added successfully');
+        // Forward the transaction to a miner
+        if (miners.length > 0) {
+            const miner = miners[Math.floor(Math.random() * miners.length)];
+            if (miner.readyState === WebSocket.OPEN) {
+                miner.send(JSON.stringify({ type: 'NEW_TRANSACTION', transaction }));
+                return res.status(200).send('Transaction forwarded to miner');
+            } else {
+                return res.status(500).send('No available miners');
+            }
+        } else {
+            return res.status(500).send('No available miners');
+        }
     } else {
         return res.status(400).send('Invalid transaction');
     }

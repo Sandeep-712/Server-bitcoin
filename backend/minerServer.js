@@ -18,6 +18,7 @@ function connectToServer() {
     wss.on('error', handleError);
 
     wss.on('close', handleClose);
+
 }
 
 function handleMessage(message) {
@@ -26,6 +27,7 @@ function handleMessage(message) {
 
         switch (data.type) {
             case 'SYNC_RESPONSE':
+            case 'SYNC_REQUEST':
                 blockchain.handleSyncResponse(data.chain);
                 isSynchronized = true;
                 console.log('Blockchain synchronized');
@@ -56,19 +58,19 @@ function handleClose() {
     setTimeout(connectToServer, 5000); // Reconnect after 5 seconds
 }
 
-function broadcastTransaction(transaction) {
-    if (wss && wss.readyState === WebSocket.OPEN) {
-        if (blockchain.isValidTransaction(transaction)) {
-            blockchain.addTransaction(transaction);
-            wss.send(JSON.stringify({ type: 'NEW_TRANSACTION', transaction }));
-            console.log('New transaction broadcasted to the network');
-        } else {
-            console.error('Invalid transaction:', transaction);
-        }
-    } else {
-        console.error('WebSocket is not open. Cannot broadcast transaction.');
-    }
-}
+// function broadcastTransaction(transaction) {
+//     if (wss && wss.readyState === WebSocket.OPEN) {
+//         if (blockchain.isValidTransaction(transaction)) {
+//             blockchain.addTransaction(transaction);
+//             wss.send(JSON.stringify({ type: 'NEW_TRANSACTION', transaction }));
+//             console.log('New transaction broadcasted to the network');
+//         } else {
+//             console.error('Invalid transaction:', transaction);
+//         }
+//     } else {
+//         console.error('WebSocket is not open. Cannot broadcast transaction.');
+//     }
+// }
 
 // Initial connection
 connectToServer();

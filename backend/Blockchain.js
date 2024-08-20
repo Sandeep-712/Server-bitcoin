@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import WebSocket from 'ws';
 import proofOfWork from './utils.js';
 import * as bitcoin from 'bitcoinjs-lib';
 import { ECPairFactory } from 'ecpair';
@@ -24,6 +25,7 @@ class Blockchain {
         this.chain = [this.createGenesisBlock()];
         this.difficulty = 4;
         this.pendingTransactions = [];
+        this.balances = {}; // In-memory balances
     }
 
     // Create the genesis block (first block in blockchain)
@@ -153,6 +155,11 @@ class Blockchain {
             return false;
         }
 
+        // Check if the sender has enough balance
+        // if (!this.balances[from] || this.balances[from] < amount) {
+        //     return false;
+        // }
+
         try {
             const transactionString = JSON.stringify({ from, to, amount });
             const hash = bitcoin.crypto.sha256(Buffer.from(transactionString));
@@ -177,6 +184,12 @@ class Blockchain {
         const newBlock = this.createBlock(this.pendingTransactions);
         this.addBlock(newBlock);
         console.log('New block mined and added to the chain', newBlock);
+
+        // Update balances
+        // this.pendingTransactions.forEach(transaction => {
+        //     this.balances[transaction.from] -= transaction.amount;
+        //     this.balances[transaction.to] = (this.balances[transaction.to] || 0) + transaction.amount;
+        // });
 
         return newBlock;
     }
