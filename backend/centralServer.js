@@ -77,7 +77,7 @@ app.post('/transaction', (req, res) => {
 
     const transaction = { from, to, amount, signature, publicKey };
 
-    // console.log('Transaction object:', transaction);
+    console.log('Transaction object:', transaction);
 
     const isValid = blockchain.isValidTransaction(transaction);
 
