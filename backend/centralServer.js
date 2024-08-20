@@ -66,8 +66,6 @@ app.get('/blockchain', (req, res) => {
     res.json(blockchain.getBlockchain());
 });
 
-
-
 app.post('/transaction', (req, res) => {
     const { from, to, amount, signature, publicKey } = req.body;
 
@@ -79,7 +77,7 @@ app.post('/transaction', (req, res) => {
 
     const transaction = { from, to, amount, signature, publicKey };
 
-    console.log('Transaction object:', transaction);
+    // console.log('Transaction object:', transaction);
 
     const isValid = blockchain.isValidTransaction(transaction);
 
@@ -140,7 +138,7 @@ wss.on('connection', (ws) => {
                 }
                 break;
             default:
-                console.error('Unknown message type:', data.type);
+                console.error('Unknown message type in central server:', data.type);
         }
     });
 

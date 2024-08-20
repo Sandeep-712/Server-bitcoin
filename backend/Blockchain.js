@@ -1,5 +1,5 @@
-import crypto from 'crypto';
 import WebSocket from 'ws';
+import crypto from 'crypto';
 import proofOfWork from './utils.js';
 import * as bitcoin from 'bitcoinjs-lib';
 import { ECPairFactory } from 'ecpair';
@@ -186,10 +186,10 @@ class Blockchain {
         console.log('New block mined and added to the chain', newBlock);
 
         // Update balances
-        // this.pendingTransactions.forEach(transaction => {
-        //     this.balances[transaction.from] -= transaction.amount;
-        //     this.balances[transaction.to] = (this.balances[transaction.to] || 0) + transaction.amount;
-        // });
+        this.pendingTransactions.forEach(transaction => {
+            this.balances[transaction.from] -= transaction.amount;
+            this.balances[transaction.to] = (this.balances[transaction.to] || 0) + transaction.amount;
+        });
 
         return newBlock;
     }
@@ -205,22 +205,32 @@ class Blockchain {
 
     // Handle synchronization response
     handleSyncResponse(newChain) {
-        this.syncChain(newChain);
+        if (newChain && Array.isArray(newChain)) {
+            this.syncChain(newChain);
+        } else {
+            console.error('Invalid chain data received:', newChain);
+        }
     }
 
     // Add new block to the chain
-    handleNewBlock(newBlock, wss) {
-        if (newBlock.previousHash === this.chain[this.chain.length - 1].hash) {
-            this.addBlock(newBlock);
-        } else {
-            console.error('Previous hash mismatch. Requesting full blockchain sync.');
-            // Request full blockchain sync from the central server
-            wss.send(JSON.stringify({ type: 'SYNC_REQUEST' }));
+    async handleNewBlock(newBlock, wss) {
+        try {
+            if (newBlock.previousHash === this.chain[this.chain.length - 1].hash) {
+                await this.addBlock(newBlock);
+            } else {
+                console.error('Previous hash mismatch. Requesting full blockchain sync.');
+                // Request full blockchain sync from the central server
+                wss.send(JSON.stringify({ type: 'SYNC_REQUEST' }));
+            }
+        } catch (error) {
+            console.error('Error handling new block:', error);
+            // Implement retry logic if needed
         }
     }
 
     // Add new transaction to the pending transactions
     handleNewTransaction(transaction, wss) {
+
         if (this.isValidTransaction(transaction)) {
             this.addTransaction(transaction);
 
@@ -236,6 +246,15 @@ class Blockchain {
             console.error('Invalid transaction received:', transaction);
         }
     }
+
+    // Print the blockchain
+    printBlockchain() {
+        console.log('Latest Blockchain:');
+        this.chain.forEach(block => {
+            console.log(`Index: ${block.index},\n Hash: ${block.hash},\n Previous Hash: ${block.previousHash},\n Timestamp: ${block.timestamp},\n Transactions: ${JSON.stringify(block.transactions)},\n Nonce: ${block.nonce}`);
+        });
+    }
+
 
     // Get blockchain
     getBlockchain() {
